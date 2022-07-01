@@ -8,11 +8,11 @@ rm -rf nacos-coredns-plugin
 
 # clone current codes
 git clone https://github.com/coredns/coredns.git
-git clone https://github.com/SoarYu/nacos-coredns-plugin.git
+git clone https://github.com/nacos-group/nacos-coredns-plugin.git
 
 # cd nacos-coredns-plugin directory
-# cd $GOPATH/src/nacos-coredns-plugin
-# git checkout -b v1.6.7 origin/v1.6.7
+cd $GOPATH/src/nacos-coredns-plugin
+git checkout -b v1.6.7 origin/v1.6.7
 # cd coredns directory
 cd $GOPATH/src/coredns
 git checkout -b v1.6.7 v1.6.7
