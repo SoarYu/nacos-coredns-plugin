@@ -11,7 +11,7 @@ git clone https://github.com/coredns/coredns.git
 git clone https://github.com/nacos-group/nacos-coredns-plugin.git
 
 # cd nacos-coredns-plugin directory
-cd $GOPATHgit /src/nacos-coredns-plugin
+cd $GOPATH/src/nacos-coredns-plugin
 git checkout -b v1.6.7 origin/v1.6.7
 # cd coredns directory
 cd $GOPATH/src/coredns
