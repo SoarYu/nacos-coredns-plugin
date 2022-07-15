@@ -16,13 +16,16 @@ package nacos
 import "encoding/json"
 
 type Instance struct {
-	IP         string
-	Port       int
-	Weight     float64
-	Valid      bool
-	Unit       string
-	AppUseType string
-	Site       string
+	IP      string
+	Port    int
+	Cluster string `json:"cluster"`
+	Weight  float64
+	Healthy bool `json:"healthy"`
+	Enable  bool `json:"enabled"`
+	//Valid      bool `json:"healthy"`
+	//Unit       string
+	//AppUseType string
+	//Site       string
 }
 
 func (h Instance) String() string {

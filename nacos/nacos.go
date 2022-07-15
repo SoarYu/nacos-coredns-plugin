@@ -16,6 +16,7 @@ package nacos
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
@@ -48,7 +49,7 @@ func (vs *Nacos) managed(dom, clientIP string) bool {
 
 	AllDoms.DLock.RLock()
 	_, ok1 := AllDoms.Data[dom]
-
+	fmt.Println("ok1 means service contain:", ok1)
 	cacheKey := GetCacheKey(dom, clientIP)
 
 	_, inCache := vs.NacosClientImpl.GetDomainCache().Get(cacheKey)
@@ -78,6 +79,7 @@ func (vs *Nacos) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg)
 		return plugin.NextOrFailure(vs.Name(), vs.Next, ctx, w, r)
 	} else {
 		hosts := make([]Instance, 0)
+		//取域名[]instance的最后一个
 		host := vs.NacosClientImpl.SrvInstance(name[:len(name)-1], clientIP)
 		hosts = append(hosts, *host)
 

@@ -46,6 +46,7 @@ func NacosParse(c *caddy.Controller) (*Nacos, error) {
 	nacosImpl := Nacos{}
 	var servers = make([]string, 0)
 	serverPort := 8848
+	namespaceId := ""
 	for c.Next() {
 		nacosImpl.Zones = c.RemainingArgs()
 
@@ -60,6 +61,9 @@ func NacosParse(c *caddy.Controller) (*Nacos, error) {
 					if err != nil {
 						serverPort = port
 					}
+				case "nacos_namespaceId":
+					namespaceId := c.RemainingArgs()[0]
+					fmt.Println("nacos namespaceId:", namespaceId)
 				case "cache_ttl":
 					ttl, err := strconv.Atoi(c.RemainingArgs()[0])
 					if err != nil {
@@ -82,7 +86,7 @@ func NacosParse(c *caddy.Controller) (*Nacos, error) {
 
 		}
 
-		client := NewNacosClient(servers, serverPort)
+		client := NewNacosClient(namespaceId, servers, serverPort)
 		nacosImpl.NacosClientImpl = client
 		nacosImpl.DNSCache = NewConcurrentMap()
 
