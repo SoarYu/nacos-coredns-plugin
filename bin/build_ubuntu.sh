@@ -4,10 +4,12 @@ cd $GOPATH/src/
 
 # remove codes
 rm -rf coredns
-rm -rf nacos-coredns-plugin
+
+cp -r  /home/ywg/Downloads/coredns coredns
+#rm -rf nacos-coredns-plugin
 
 # clone current codes
-git clone https://github.com/coredns/coredns.git
+#git clone https://github.com/coredns/coredns.git
 git clone https://github.com/SoarYu/nacos-coredns-plugin.git
 
 # cd nacos-coredns-plugin directory
@@ -15,7 +17,7 @@ git clone https://github.com/SoarYu/nacos-coredns-plugin.git
 #git checkout -b v1.6.7 origin/v1.6.7
 # cd coredns directory
 cd $GOPATH/src/coredns
-git checkout -b v1.6.7 v1.6.7
+#git checkout -b v1.6.7 v1.6.7
 go get github.com/cihub/seelog
 
 # copy nacos plugin to coredns
@@ -27,10 +29,6 @@ cp -r ../nacos-coredns-plugin/conf conf
 sed -i '/hosts/a\\t"nacos",' core/dnsserver/zdirectives.go
 sed -i '/coredns\/plugin\/hosts/a\\t_ "coredns/plugin/nacos"' core/plugin/zplugin.go
 sed -i '/hosts:hosts/a\nacos:nacos' plugin.cfg
-sed -i '/)/a\repalce google.golang.org/grpc => google.golang.org/grpc v1.26.0' go.mod
-sed -i "s/go 1.13/go 1.14/g" go.mod
-
-
 
 # build
 make

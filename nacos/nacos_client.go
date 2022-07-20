@@ -252,7 +252,7 @@ func ProcessDomainString(s string) (Domain, error) {
 	return domain, nil
 }
 
-func NewNacosClient(namespaceId string, servers []string, serverPort int) *NacosClient {
+func NewNacosClient(namespaceId string, serverHosts []string, serverPort int) *NacosClient {
 	fmt.Println("init nacos client.")
 	initLog()
 	vc := NacosClient{NewConcurrentMap(), UDPServer{}}
@@ -260,7 +260,7 @@ func NewNacosClient(namespaceId string, servers []string, serverPort int) *Nacos
 	vc.udpServer.vipClient = &vc
 	//vc.SetServers(servers)
 	//init grpcClient
-	GrpcClient = NewNacosGrpcClient(namespaceId, servers)
+	GrpcClient = NewNacosGrpcClient(namespaceId, serverHosts, &vc)
 
 	if EnableReceivePush {
 		go vc.udpServer.StartServer()
