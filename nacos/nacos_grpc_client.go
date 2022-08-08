@@ -1,13 +1,11 @@
 package nacos
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/nacos-group/nacos-sdk-go/v2/clients"
 	"github.com/nacos-group/nacos-sdk-go/v2/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/model"
-	"github.com/nacos-group/nacos-sdk-go/v2/util"
 	"github.com/nacos-group/nacos-sdk-go/v2/vo"
 	"strconv"
 	"strings"
@@ -18,12 +16,12 @@ type NacosGrpcClient struct {
 	clientConfig  constant.ClientConfig       //nacos-coredns客户端配置
 	serverConfigs []constant.ServerConfig     //nacos服务器集群配置
 	grpcClient    naming_client.INamingClient //nacos-coredns与nacos服务器的grpc连接
-	subsrcibeMap  map[string]bool
 	nacosClient   *NacosClient
 }
 
-func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClient) *NacosGrpcClient {
+func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClient) (*NacosGrpcClient, error) {
 	var nacosGrpcClient NacosGrpcClient
+	nacosGrpcClient.nacosClient = vc
 	if namespaceId == "public" {
 		namespaceId = ""
 	}
@@ -31,10 +29,11 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 
 	var serverConfigs []constant.ServerConfig
 	for _, serverHost := range serverHosts {
-		fmt.Println("nacos_server_host:", serverHost)
 		serverIp := strings.Split(serverHost, ":")[0]
-		serverPort, _ := strconv.Atoi(strings.Split(serverHost, ":")[1])
-		fmt.Println("serverIP, serverPost:", serverIp, serverPort)
+		serverPort, err := strconv.Atoi(strings.Split(serverHost, ":")[1])
+		if err != nil {
+			NacosClientLogger.Error("nacos server host config error!", err)
+		}
 		serverConfigs = append(serverConfigs, *constant.NewServerConfig(
 			serverIp,
 			uint64(serverPort),
@@ -42,18 +41,17 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 			constant.WithContextPath("/nacos"),
 		))
 	}
-	fmt.Println("serverConfigs:", serverConfigs)
+	nacosGrpcClient.serverConfigs = serverConfigs
 
 	nacosGrpcClient.clientConfig = *constant.NewClientConfig(
 		constant.WithNamespaceId(namespaceId),
 		constant.WithTimeoutMs(5000),
 		constant.WithNotLoadCacheAtStart(true),
+		constant.WithUpdateCacheWhenEmpty(true),
 		constant.WithLogDir("/tmp/nacos/log"),
-		constant.WithCacheDir("/tmp/nacos/cache"),
+		constant.WithCacheDir(CachePath),
 		constant.WithLogLevel("debug"),
 	)
-
-	nacosGrpcClient.serverConfigs = serverConfigs
 
 	var err error
 	nacosGrpcClient.grpcClient, err = clients.NewNamingClient(
@@ -66,17 +64,13 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 		fmt.Println("init nacos-client error")
 	}
 
-	nacosGrpcClient.subsrcibeMap = make(map[string]bool)
-
-	nacosGrpcClient.nacosClient = vc
-
-	return &nacosGrpcClient
+	return &nacosGrpcClient, err
 }
 
 //Doms        []string `json:"doms"`
 func (ngc *NacosGrpcClient) GetAllServicesInfo() []string {
 	var pageNo = uint32(1)
-	var pageSize = uint32(10)
+	var pageSize = uint32(100)
 	var doms []string
 	serviceList, _ := ngc.grpcClient.GetAllServicesInfo(vo.GetAllServiceInfoParam{
 		NameSpace: ngc.namespaceId,
@@ -104,43 +98,58 @@ func (ngc *NacosGrpcClient) GetAllServicesInfo() []string {
 	return doms
 }
 
-func (ngc *NacosGrpcClient) GetService(serviceName string) Domain {
+func (ngc *NacosGrpcClient) GetService(serviceName string) model.Service {
 	service, _ := ngc.grpcClient.GetService(vo.GetServiceParam{ //从服务端返回model.Service
 		ServiceName: serviceName,
 	})
 	if service.Hosts == nil {
 		NacosClientLogger.Warn("empty result from server, dom:" + serviceName)
-		return Domain{}
 	}
-	var domain Domain
-	//s, _ := json.Marshal(service)      //model.Service转换成json
-	s := util.ToJsonString(service)
-	err1 := json.Unmarshal([]byte(s), &domain) //json转换成Domain
-	if err1 != nil {
-		NacosClientLogger.Error("failed to unmarshal json string: ", err1)
-		return Domain{Name: serviceName}
-	}
-	return domain
+
+	return service
 }
 
-func (ngc *NacosGrpcClient) Subscribe(serviceName string) {
-	//if(ngc.subsrcibeMap[serviceName]){
-	//
-	//}
+func (ngc *NacosGrpcClient) Subscribe(serviceName string) error {
+	if AllDoms.Data[serviceName] {
+		NacosClientLogger.Info("service " + serviceName + " already subsrcibed.")
+		return nil
+	}
 	param := &vo.SubscribeParam{
-		ServiceName:       "demo.go",
+		ServiceName:       serviceName,
 		GroupName:         "",
 		SubscribeCallback: ngc.Callback,
 	}
-	ngc.grpcClient.Subscribe(param)
-	//ngc.grpcClient.Unsubscribe(param)
+	if err := ngc.grpcClient.Subscribe(param); err != nil {
+		NacosClientLogger.Error("service subscribe error " + serviceName)
+		return err
+	}
+	AllDoms.Data[serviceName] = true
+	return nil
 }
 
-func (ngc *NacosGrpcClient) Callback(services []model.Instance, err error) {
-	//fmt.Println("callback return")
-	fmt.Printf("callback return services:%s \n\n", util.ToJsonString(services))
+func (ngc *NacosGrpcClient) Callback(instances []model.Instance, err error) {
+	//更新实例数量为0
+	if len(instances) == 0 {
+		for dom, _ := range AllDoms.Data {
+			if service := ngc.GetService(dom); len(service.Hosts) == 0 {
+				ngc.nacosClient.GetDomainCache().Set(dom, service)
+			}
+		}
+		return
+	}
 
-	//s := util.ToJsonString(services)
-	//err1 := json.Unmarshal([]byte(s), &domain) //json转换成Domain
+	serviceName := strings.Split(instances[0].ServiceName, SEPERATOR)[1]
+	oldService, ok := ngc.nacosClient.GetDomainCache().Get(serviceName)
+	if !ok {
+		NacosClientLogger.Info("service not found in cache " + serviceName)
+		service := ngc.GetService(serviceName)
+		ngc.nacosClient.GetDomainCache().Set(serviceName, service)
+	} else {
+		service := oldService.(model.Service)
+		service.Hosts = instances
+		service.LastRefTime = uint64(CurrentMillis())
+		ngc.nacosClient.GetDomainCache().Set(serviceName, service)
+	}
+	NacosClientLogger.Info("serviceName: "+serviceName+" was updated to: ", instances)
 
 }

@@ -19,19 +19,17 @@ import (
 )
 
 type Domain struct {
-	Name          string     `json:"name"`
-	Clusters      string     `json:"clusters"`
-	CacheMillis   int64      `json:"cacheMillis"`
-	LastRefMillis int64      `json:"lastRefTime"`
-	Hosts         []Instance `json:"hosts"`
-	//Instances     []Instance
-	//Env           string
-	//TTL           int
+	Name          string `json:"dom"`
+	Clusters      string
+	CacheMillis   int64
+	LastRefMillis int64
+	Instances     []Instance `json:"hosts"`
+	Env           string
+	TTL           int
 }
 
 func (domain Domain) getInstances() []Instance {
-	return domain.Hosts
-	//return domain.Instances
+	return domain.Instances
 }
 
 func (domain Domain) String() string {
@@ -43,7 +41,7 @@ func (domain Domain) SrvInstances() []Instance {
 	var result = make([]Instance, 0)
 	hosts := domain.getInstances()
 	for _, host := range hosts {
-		if host.Healthy && host.Enable && host.Weight > 0 {
+		if host.Valid && host.Weight > 0 {
 			for i := 0; i < int(math.Ceil(host.Weight)); i++ {
 				result = append(result, host)
 			}

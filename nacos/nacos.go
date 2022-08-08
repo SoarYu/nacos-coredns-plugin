@@ -20,6 +20,7 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
+	"github.com/nacos-group/nacos-sdk-go/v2/model"
 	"net"
 )
 
@@ -49,15 +50,20 @@ func (vs *Nacos) managed(dom, clientIP string) bool {
 
 	AllDoms.DLock.RLock()
 	_, ok1 := AllDoms.Data[dom]
-	fmt.Println("ok1 means service contain:", ok1)
-	cacheKey := GetCacheKey(dom, clientIP)
+	//cacheKey := GetCacheKey(dom, clientIP)
 
-	_, inCache := vs.NacosClientImpl.GetDomainCache().Get(cacheKey)
+	_, inCache := vs.NacosClientImpl.GetDomainCache().Get(dom)
 
+	if ok1 && !inCache {
+		AllDoms.Data[dom] = false
+		GrpcClient.Subscribe(dom)
+	}
+
+	fmt.Println("managed ok1, inCache:", ok1, inCache)
 	return ok1 || inCache
 }
 
-func (vs *Nacos) getRecordBySession(dom, clientIP string) Instance {
+func (vs *Nacos) getRecordBySession(dom, clientIP string) model.Instance {
 	host := *vs.NacosClientImpl.SrvInstance(dom, clientIP)
 	return host
 
@@ -78,7 +84,7 @@ func (vs *Nacos) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg)
 	if !vs.managed(name[:len(name)-1], clientIP) {
 		return plugin.NextOrFailure(vs.Name(), vs.Next, ctx, w, r)
 	} else {
-		hosts := make([]Instance, 0)
+		hosts := make([]model.Instance, 0)
 		//取域名[]instance的最后一个
 		host := vs.NacosClientImpl.SrvInstance(name[:len(name)-1], clientIP)
 		hosts = append(hosts, *host)
@@ -92,11 +98,11 @@ func (vs *Nacos) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg)
 			case 1:
 				rr = new(dns.A)
 				rr.(*dns.A).Hdr = dns.RR_Header{Name: state.QName(), Rrtype: dns.TypeA, Class: state.QClass(), Ttl: DNSTTL}
-				rr.(*dns.A).A = net.ParseIP(host.IP).To4()
+				rr.(*dns.A).A = net.ParseIP(host.Ip).To4()
 			case 2:
 				rr = new(dns.AAAA)
 				rr.(*dns.AAAA).Hdr = dns.RR_Header{Name: state.QName(), Rrtype: dns.TypeAAAA, Class: state.QClass(), Ttl: DNSTTL}
-				rr.(*dns.AAAA).AAAA = net.ParseIP(host.IP)
+				rr.(*dns.AAAA).AAAA = net.ParseIP(host.Ip)
 			}
 
 			srv := new(dns.SRV)
