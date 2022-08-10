@@ -189,7 +189,6 @@ func (vc *NacosClient) Registered(dom string) bool {
 }
 
 func (vc *NacosClient) loadCache() {
-	//files, err := ioutil.ReadDir(CachePath)
 	NacosSdkCachePath := CachePath + "/naming/public/"
 	files, err := ioutil.ReadDir(NacosSdkCachePath) //CachePath+"/cache/naming/public"
 	if err != nil {
@@ -206,7 +205,6 @@ func (vc *NacosClient) loadCache() {
 		s := string(b)
 		var service model.Service
 		err1 := json.Unmarshal([]byte(s), &service)
-		//domain, err1 := ProcessDomainString(s)
 
 		if err1 != nil {
 			continue
@@ -242,7 +240,6 @@ func NewNacosClient(namespaceId string, serverHosts []string) *NacosClient {
 	vc := NacosClient{NewConcurrentMap(), UDPServer{}}
 	vc.loadCache()
 	vc.udpServer.vipClient = &vc
-	//vc.SetServers(servers)
 	//init grpcClient
 	var err error
 	GrpcClient, err = NewNacosGrpcClient(namespaceId, serverHosts, &vc)
@@ -318,17 +315,17 @@ func GetCacheKey(dom, clientIP string) string {
 }
 
 func (vc *NacosClient) getDomNow(serviceName string, cache *ConcurrentMap, clientIP string) model.Service {
-	domain := GrpcClient.GetService(serviceName)
+	service := GrpcClient.GetService(serviceName)
 
 	oldDomain, ok := cache.Get(serviceName)
-	if !ok || ok && !reflect.DeepEqual(domain.Hosts, oldDomain.(model.Service).Hosts) {
+	if !ok || ok && !reflect.DeepEqual(service.Hosts, oldDomain.(model.Service).Hosts) {
 		if !ok {
 			NacosClientLogger.Info("dom not found in cache " + serviceName)
 			oldDomain = model.Service{}
 		}
-		NacosClientLogger.Info("dom "+serviceName+" updated: ", domain)
+		NacosClientLogger.Info("dom "+serviceName+" updated: ", service)
 	}
-	cache.Set(serviceName, domain)
+	cache.Set(serviceName, service)
 
 	//subscribe service
 	if !AllDoms.Data[serviceName] {
@@ -336,7 +333,7 @@ func (vc *NacosClient) getDomNow(serviceName string, cache *ConcurrentMap, clien
 		AllDoms.Data[serviceName] = true
 	}
 
-	return domain
+	return service
 }
 
 func (vc *NacosClient) SrvInstance(domainName, clientIP string) *model.Instance {

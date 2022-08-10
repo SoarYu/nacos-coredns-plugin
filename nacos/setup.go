@@ -45,8 +45,7 @@ func NacosParse(c *caddy.Controller) (*Nacos, error) {
 	fmt.Println("init nacos plugin...")
 	nacosImpl := Nacos{}
 	var serverHosts = make([]string, 0)
-	//var servers = make([]string, 0)
-	//serverPort := 8848
+
 	namespaceId := ""
 	for c.Next() {
 		nacosImpl.Zones = c.RemainingArgs()
@@ -55,11 +54,9 @@ func NacosParse(c *caddy.Controller) (*Nacos, error) {
 			for {
 				switch v := c.Val(); v {
 				case "nacos_namespaceId":
-					namespaceId := c.RemainingArgs()[0]
-					fmt.Println("nacos namespaceId:", namespaceId)
+					namespaceId = c.RemainingArgs()[0]
 				case "nacos_server_host":
 					serverHosts = strings.Split(c.RemainingArgs()[0], ",")
-					fmt.Println("nacos serverHosts:", serverHosts)
 				//case "nacos_server":
 				//	servers = strings.Split(c.RemainingArgs()[0], ",")
 

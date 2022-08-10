@@ -50,7 +50,6 @@ func (vs *Nacos) managed(dom, clientIP string) bool {
 
 	AllDoms.DLock.RLock()
 	_, ok1 := AllDoms.Data[dom]
-	//cacheKey := GetCacheKey(dom, clientIP)
 
 	_, inCache := vs.NacosClientImpl.GetDomainCache().Get(dom)
 
@@ -85,7 +84,6 @@ func (vs *Nacos) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg)
 		return plugin.NextOrFailure(vs.Name(), vs.Next, ctx, w, r)
 	} else {
 		hosts := make([]model.Instance, 0)
-		//取域名[]instance的最后一个
 		host := vs.NacosClientImpl.SrvInstance(name[:len(name)-1], clientIP)
 		hosts = append(hosts, *host)
 

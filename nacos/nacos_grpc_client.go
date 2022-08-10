@@ -50,7 +50,7 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 		constant.WithUpdateCacheWhenEmpty(true),
 		constant.WithLogDir("/tmp/nacos/log"),
 		constant.WithCacheDir(CachePath),
-		constant.WithLogLevel("debug"),
+		constant.WithLogLevel("info"),
 	)
 
 	var err error
@@ -67,7 +67,6 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 	return &nacosGrpcClient, err
 }
 
-//Doms        []string `json:"doms"`
 func (ngc *NacosGrpcClient) GetAllServicesInfo() []string {
 	var pageNo = uint32(1)
 	var pageSize = uint32(100)
@@ -99,7 +98,7 @@ func (ngc *NacosGrpcClient) GetAllServicesInfo() []string {
 }
 
 func (ngc *NacosGrpcClient) GetService(serviceName string) model.Service {
-	service, _ := ngc.grpcClient.GetService(vo.GetServiceParam{ //从服务端返回model.Service
+	service, _ := ngc.grpcClient.GetService(vo.GetServiceParam{
 		ServiceName: serviceName,
 	})
 	if service.Hosts == nil {
