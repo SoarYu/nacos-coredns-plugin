@@ -132,6 +132,7 @@ func (ngc *NacosGrpcClient) Callback(instances []model.Instance, err error) {
 		for dom, _ := range AllDoms.Data {
 			if service := ngc.GetService(dom); len(service.Hosts) == 0 {
 				ngc.nacosClient.GetDomainCache().Set(dom, service)
+				AllDoms.Data[dom] = false
 			}
 		}
 		return
