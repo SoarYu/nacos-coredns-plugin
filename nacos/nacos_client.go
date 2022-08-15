@@ -254,6 +254,7 @@ func NewNacosClient(namespaceId string, serverHosts []string) *NacosClient {
 	AllDoms = AllDomsMap{}
 	AllDoms.Data = make(map[string]bool)
 	AllDoms.DLock = sync.RWMutex{}
+	AllDoms.CacheSeconds = 5
 
 	vc.getAllDomNames()
 

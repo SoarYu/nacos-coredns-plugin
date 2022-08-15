@@ -16,7 +16,6 @@ package nacos
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/request"
 	"github.com/miekg/dns"
@@ -58,7 +57,6 @@ func (vs *Nacos) managed(dom, clientIP string) bool {
 		GrpcClient.Subscribe(dom)
 	}
 
-	fmt.Println("managed ok1, inCache:", ok1, inCache)
 	return ok1 || inCache
 }
 
