@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/coredns/coredns/plugin/pkg/log"
 	"strconv"
 	"time"
 
