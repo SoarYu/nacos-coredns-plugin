@@ -25,7 +25,7 @@ cp -r ../nacos-coredns-plugin/conf conf
 
 # insert nacos into plugin
 sed -i '/hosts/a\\t"nacos",' core/dnsserver/zdirectives.go
-sed -i '/coredns\/plugin\/hosts/a\\t_ "coredns/plugin/nacos"' core/plugin/zplugin.go
+sed -i '/coredns\/plugin\/hosts/a\\t_ "github.com/coredns/coredns/plugin/nacos"' core/plugin/zplugin.go
 sed -i '/hosts:hosts/a\nacos:nacos' plugin.cfg
 
 
