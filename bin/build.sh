@@ -13,7 +13,7 @@ git clone https://github.com/coredns/coredns.git
 
 # cd coredns directory
 cd $GOPATH/src/coredns
-git checkout -b v1.8.7 v1.8.7
+git checkout -b v1.9.3 v1.9.3
 go get github.com/cihub/seelog
 go get github.com/nacos-group/nacos-sdk-go/v2
 go mod download github.com/aliyun/alibaba-cloud-sdk-go
