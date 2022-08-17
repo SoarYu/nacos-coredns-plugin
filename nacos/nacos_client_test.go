@@ -14,10 +14,11 @@
 package nacos
 
 import (
+	"github.com/nacos-group/nacos-sdk-go/v2/model"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
-	"strings"
+	"sync"
 	"testing"
 )
 
@@ -34,15 +35,56 @@ func TestNacosClient_GetDomain(t *testing.T) {
 
 	}))
 
-	port, _ := strconv.Atoi(strings.Split(server.URL, ":")[2])
+	//port, _ := strconv.Atoi(strings.Split(server.URL, ":")[2])
 
 	defer server.Close()
 
-	vc := NacosClient{NewConcurrentMap(), UDPServer{}, ServerManager{}, port}
+	//vc := NacosClient{NewConcurrentMap(), UDPServer{}, ServerManager{}, port}
+	//vc.udpServer.vipClient = &vc
+	//vc.SetServers([]string{strings.Split(strings.Split(server.URL, "http://")[1], ":")[0]})
+	//instance := vc.SrvInstance("hello123", "127.0.0.1")
+	//if strings.Compare(instance.IP, "2.2.2.2") == 0 {
+	//	t.Log("Passed")
+	//}
+}
+
+var nacosClientTest = NewNacosClientTEST()
+
+func NewNacosClientTEST() *NacosClient {
+	vc := NacosClient{NewConcurrentMap(), UDPServer{}}
 	vc.udpServer.vipClient = &vc
-	vc.SetServers([]string{strings.Split(strings.Split(server.URL, "http://")[1], ":")[0]})
-	instance := vc.SrvInstance("hello123", "127.0.0.1")
-	if strings.Compare(instance.IP, "2.2.2.2") == 0 {
-		t.Log("Passed")
+	AllDoms = AllDomsMap{}
+	AllDoms.Data = make(map[string]bool)
+	AllDoms.DLock = sync.RWMutex{}
+	return &vc
+}
+
+func TestNacosClient_getAllDomNames(t *testing.T) {
+	GrpcClient = grpcClientTest
+	nacosClientTest.getAllDomNames()
+
+	AllDoms.DLock.Lock()
+
+	defer AllDoms.DLock.Unlock()
+
+	doms := GrpcClient.GetAllServicesInfo()
+	for _, dom := range doms {
+		assert.True(t, AllDoms.Data[dom])
+	}
+
+}
+
+func TestNacosClient_getDomNow(t *testing.T) {
+	GrpcClient = grpcClientTest
+	nacosClientTest.getAllDomNames()
+
+	domainMapTest := NewConcurrentMap()
+	for k, _ := range AllDoms.Data {
+		s, ok := nacosClientTest.GetDomainCache().Get(k)
+		assert.True(t, ok)
+		ncService := s.(model.Service)
+		service := nacosClientTest.getDomNow(k, &domainMapTest, "0.0.0.0")
+		assert.True(t, service.Name == ncService.Name)
+		return
 	}
 }

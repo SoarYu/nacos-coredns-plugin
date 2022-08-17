@@ -1,7 +1,7 @@
 This project provides a **DNS-F** client based on [CoreDNS](https://coredns.io/), which can help export those registed services on Nacos as DNS domain. **DNS-F** client is a dedicated agent process(side car) beside the application's process to foward the service discovery DNS domain query request to Nacos. 
 
 ## Quic Start
-To build and run nacos coredns plugin, the OS must be Linux or Mac. And also, golang environments(GOPATH,GOROOT,GOHOME) must be configured correctly.
+To build and run nacos coredns plugin, the OS must be Linux or Mac. And also, make sure your golang version is 1.17 or higher as go mod support and other api is needed, and golang environments(GOPATH,GOROOT,GOHOME) must be configured correctly.
 
 ### Build
 ```
@@ -14,16 +14,17 @@ sh build.sh
 To run nacos coredns plugin, you need a configuration file. A possible file may be as bellow:
 ```
 . {
+    log
     nacos {
-        upstream /etc/resolv.conf
-        nacos_server 127.0.0.1
-        nacos_server_port 8848
+        nacos_namespaceId public
+        nacos_server_host console.nacos.io:8848
    }
+   forward . /etc/resolv.conf
  }
 ```
-* upstream: domain names those not registered in nacos will be forwarded to upstream.
-* nacos_server: Ips of nacos server, seperated by comma if there are two or more nacos servers
-* nacos_server_port: Nacos server port
+* forward: domain names those not registered in nacos will be forwarded to upstream.
+* nacos_namespaceId: nacos namespaceId, defalut is public.
+* nacos_server_host: Ip and Port of nacos server, seperated by comma if there are two or more nacos servers
 
 ### Run
 * Firstly, you need to deploy nacos server. [Here](https://github.com/alibaba/nacos)

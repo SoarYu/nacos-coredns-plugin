@@ -15,7 +15,7 @@ package nacos
 
 import (
 	"fmt"
-	"github.com/caddyserver/caddy"
+	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
 	"strconv"
@@ -44,22 +44,28 @@ func setup(c *caddy.Controller) error {
 func NacosParse(c *caddy.Controller) (*Nacos, error) {
 	fmt.Println("init nacos plugin...")
 	nacosImpl := Nacos{}
-	var servers = make([]string, 0)
-	serverPort := 8848
+	var serverHosts = make([]string, 0)
+	namespaceId := ""
 	for c.Next() {
 		nacosImpl.Zones = c.RemainingArgs()
 
 		if c.NextBlock() {
 			for {
 				switch v := c.Val(); v {
-				case "nacos_server":
-					servers = strings.Split(c.RemainingArgs()[0], ",")
-					/* it is nacos_servera noop now */
-				case "nacos_server_port":
-					port, err := strconv.Atoi(c.RemainingArgs()[0])
-					if err != nil {
-						serverPort = port
-					}
+				case "nacos_namespaceId":
+					namespaceId = c.RemainingArgs()[0]
+				case "nacos_server_host":
+					serverHosts = strings.Split(c.RemainingArgs()[0], ",")
+
+				//case "nacos_server":
+				//	servers = strings.Split(c.RemainingArgs()[0], ",")
+				/* it is nacos_servera noop now */
+				//case "nacos_server_port":
+				//	port, err := strconv.Atoi(c.RemainingArgs()[0])
+				//	if err != nil {
+				//		serverPort = port
+				//	}
+
 				case "cache_ttl":
 					ttl, err := strconv.Atoi(c.RemainingArgs()[0])
 					if err != nil {
@@ -82,7 +88,7 @@ func NacosParse(c *caddy.Controller) (*Nacos, error) {
 
 		}
 
-		client := NewNacosClient(servers, serverPort)
+		client := NewNacosClient(namespaceId, serverHosts)
 		nacosImpl.NacosClientImpl = client
 		nacosImpl.DNSCache = NewConcurrentMap()
 
