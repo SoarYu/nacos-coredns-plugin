@@ -133,7 +133,7 @@ func initLog() {
 
 func (nacosClient *NacosClient) asyncGetAllDomNAmes() {
 	for {
-		time.Sleep(time.Duration(AllDoms.CacheSeconds) * time.Second) //10秒更新一次 AllDomNAmes
+		time.Sleep(time.Duration(AllDoms.CacheSeconds) * time.Second)
 		nacosClient.getAllDomNames()
 	}
 }
@@ -148,8 +148,8 @@ func (nacosClient *NacosClient) GetUdpServer() (us UDPServer) {
 
 func (nacosClient *NacosClient) getAllDomNames() {
 
-	doms := GrpcClient.GetAllServicesInfo()
-	if doms == nil {
+	services := GrpcClient.GetAllServicesInfo()
+	if services == nil {
 		NacosClientLogger.Warn("No Service return from servers.")
 		return
 	}
@@ -157,19 +157,20 @@ func (nacosClient *NacosClient) getAllDomNames() {
 	AllDoms.DLock.Lock()
 	if AllDoms.Data == nil {
 		var allDoms map[string]bool
-		for _, dom := range doms {
-			NacosClientLogger.Info("subscirbe service:", dom)
-			GrpcClient.Subscribe(dom)
-			allDoms[dom] = true
+		// subscribe services return from server
+		for _, service := range services {
+			NacosClientLogger.Info("subscirbe service:", service)
+			GrpcClient.Subscribe(service)
+			allDoms[service] = true
 		}
 		AllDoms.Data = allDoms
 		AllDoms.CacheSeconds = 30 //刷新间隔30s
 	} else {
-		for _, dom := range doms {
-			if !AllDoms.Data[dom] {
-				NacosClientLogger.Info("subscirbe service:", dom)
-				GrpcClient.Subscribe(dom)
-				AllDoms.Data[dom] = true
+		for _, service := range services {
+			if !AllDoms.Data[service] {
+				NacosClientLogger.Info("subscirbe service:", service)
+				GrpcClient.Subscribe(service)
+				AllDoms.Data[service] = true
 			}
 		}
 	}
@@ -190,7 +191,7 @@ func (vc *NacosClient) Registered(dom string) bool {
 
 func (vc *NacosClient) loadCache() {
 	NacosSdkCachePath := CachePath + "/naming/public/"
-	files, err := ioutil.ReadDir(NacosSdkCachePath) //CachePath+"/cache/naming/public"
+	files, err := ioutil.ReadDir(NacosSdkCachePath)
 	if err != nil {
 		NacosClientLogger.Critical(err)
 	}
@@ -254,13 +255,13 @@ func NewNacosClient(namespaceId string, serverHosts []string) *NacosClient {
 	AllDoms = AllDomsMap{}
 	AllDoms.Data = make(map[string]bool)
 	AllDoms.DLock = sync.RWMutex{}
-	AllDoms.CacheSeconds = 5
+	AllDoms.CacheSeconds = 30
 
 	vc.getAllDomNames()
 
-	go vc.asyncGetAllDomNAmes() //定时更新所有域名
+	go vc.asyncGetAllDomNAmes()
 
-	//go vc.asyncUpdateDomain() //定时更新服务名对应ip信息
+	//go vc.asyncUpdateDomain()
 
 	NacosClientLogger.Info("cache-path: " + CachePath)
 	return &vc
@@ -301,7 +302,7 @@ func (vc *NacosClient) asyncUpdateDomain() {
 			if len(ss) > 1 && ss[1] != "" {
 				clientIP = ss[1]
 			}
-			//如果超过缓存时间并且map里包含了该服务
+
 			if uint64(CurrentMillis())-dom.LastRefTime > dom.CacheMillis && vc.Registered(domName) {
 				vc.getDomNow(domName, &vc.domainMap, clientIP)
 			}
@@ -347,6 +348,7 @@ func (vc *NacosClient) SrvInstance(domainName, clientIP string) *model.Instance 
 		dom = item.(model.Service)
 	}
 
+	//select healthy instances
 	var hosts []model.Instance
 	for _, host := range dom.Hosts {
 		if host.Healthy && host.Enable && host.Weight > 0 {
@@ -392,6 +394,7 @@ func (vc *NacosClient) SrvInstances(domainName, clientIP string) []model.Instanc
 	}
 
 	var hosts []model.Instance
+	//select healthy instances
 	for _, host := range dom.Hosts {
 		if host.Healthy && host.Enable && host.Weight > 0 {
 			for i := 0; i < int(math.Ceil(host.Weight)); i++ {

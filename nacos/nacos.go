@@ -52,6 +52,7 @@ func (vs *Nacos) managed(dom, clientIP string) bool {
 
 	_, inCache := vs.NacosClientImpl.GetDomainCache().Get(dom)
 
+	// service had already subscribed but not in cache
 	if ok1 && !inCache {
 		AllDoms.Data[dom] = false
 		GrpcClient.Subscribe(dom)

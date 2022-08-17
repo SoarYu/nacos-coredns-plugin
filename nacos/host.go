@@ -18,7 +18,6 @@ import "encoding/json"
 type Instance struct {
 	IP         string
 	Port       int
-	Cluster    string
 	Weight     float64
 	Valid      bool
 	Unit       string
