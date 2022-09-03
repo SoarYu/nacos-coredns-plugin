@@ -156,11 +156,9 @@ func (nacosClient *NacosClient) getAllDomNames() {
 
 	AllDoms.DLock.Lock()
 	if AllDoms.Data == nil {
-		var allDoms map[string]bool
-		// subscribe services return from server
+		allDoms := make(map[string]bool)
+		// record all serviceNames return from server
 		for _, service := range services {
-			NacosClientLogger.Info("subscirbe service:", service)
-			GrpcClient.Subscribe(service)
 			allDoms[service] = true
 		}
 		AllDoms.Data = allDoms
@@ -168,8 +166,6 @@ func (nacosClient *NacosClient) getAllDomNames() {
 	} else {
 		for _, service := range services {
 			if !AllDoms.Data[service] {
-				NacosClientLogger.Info("subscirbe service:", service)
-				GrpcClient.Subscribe(service)
 				AllDoms.Data[service] = true
 			}
 		}

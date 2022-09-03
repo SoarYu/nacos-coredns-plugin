@@ -27,19 +27,20 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 	}
 	nacosGrpcClient.namespaceId = namespaceId //When namespace is public, fill in the blank string here.
 
-	var serverConfigs []constant.ServerConfig
-	for _, serverHost := range serverHosts {
+	serverConfigs := make([]constant.ServerConfig, len(serverHosts))
+	for i, serverHost := range serverHosts {
 		serverIp := strings.Split(serverHost, ":")[0]
 		serverPort, err := strconv.Atoi(strings.Split(serverHost, ":")[1])
 		if err != nil {
 			NacosClientLogger.Error("nacos server host config error!", err)
 		}
-		serverConfigs = append(serverConfigs, *constant.NewServerConfig(
+		serverConfigs[i] = *constant.NewServerConfig(
 			serverIp,
 			uint64(serverPort),
 			constant.WithScheme("http"),
 			constant.WithContextPath("/nacos"),
-		))
+		)
+
 	}
 	nacosGrpcClient.serverConfigs = serverConfigs
 
@@ -89,7 +90,7 @@ func (ngc *NacosGrpcClient) GetAllServicesInfo() []string {
 			PageNo:    pageNo,
 			PageSize:  pageSize,
 		})
-		if serviceList.Count != 0 {
+		if serviceList.Count > 0 {
 			doms = append(doms, serviceList.Doms...)
 		}
 	}
