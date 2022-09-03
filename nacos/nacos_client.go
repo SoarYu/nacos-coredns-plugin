@@ -156,20 +156,16 @@ func (nacosClient *NacosClient) getAllDomNames() {
 
 	AllDoms.DLock.Lock()
 	if AllDoms.Data == nil {
-		var allDoms map[string]bool
-		// subscribe services return from server
+		allDoms := make(map[string]bool)
+		// record all serviceNames return from server
 		for _, service := range services {
-			NacosClientLogger.Info("subscirbe service:", service)
-			GrpcClient.Subscribe(service)
 			allDoms[service] = true
 		}
 		AllDoms.Data = allDoms
-		AllDoms.CacheSeconds = 30 //刷新间隔30s
+		AllDoms.CacheSeconds = 10 //刷新间隔
 	} else {
 		for _, service := range services {
 			if !AllDoms.Data[service] {
-				NacosClientLogger.Info("subscirbe service:", service)
-				GrpcClient.Subscribe(service)
 				AllDoms.Data[service] = true
 			}
 		}
@@ -255,7 +251,7 @@ func NewNacosClient(namespaceId string, serverHosts []string) *NacosClient {
 	AllDoms = AllDomsMap{}
 	AllDoms.Data = make(map[string]bool)
 	AllDoms.DLock = sync.RWMutex{}
-	AllDoms.CacheSeconds = 30
+	AllDoms.CacheSeconds = 10
 
 	vc.getAllDomNames()
 
@@ -319,20 +315,12 @@ func GetCacheKey(dom, clientIP string) string {
 func (vc *NacosClient) getDomNow(serviceName string, cache *ConcurrentMap, clientIP string) model.Service {
 	service := GrpcClient.GetService(serviceName)
 
-	oldDomain, ok := cache.Get(serviceName)
-	if !ok || ok && !reflect.DeepEqual(service.Hosts, oldDomain.(model.Service).Hosts) {
-		if !ok {
-			NacosClientLogger.Info("dom not found in cache " + serviceName)
-			oldDomain = model.Service{}
-		}
-		NacosClientLogger.Info("dom "+serviceName+" updated: ", service)
-	}
 	cache.Set(serviceName, service)
 
-	//subscribe service
-	if !AllDoms.Data[serviceName] {
+	NacosClientLogger.Info("dom "+serviceName+" updated: ", service)
+
+	if !GrpcClient.SubscribeMap[serviceName] {
 		GrpcClient.Subscribe(serviceName)
-		AllDoms.Data[serviceName] = true
 	}
 
 	return service
@@ -352,14 +340,12 @@ func (vc *NacosClient) SrvInstance(domainName, clientIP string) *model.Instance 
 	var hosts []model.Instance
 	for _, host := range dom.Hosts {
 		if host.Healthy && host.Enable && host.Weight > 0 {
-			for i := 0; i < int(math.Ceil(host.Weight)); i++ {
-				hosts = append(hosts, host)
-			}
+			hosts = append(hosts, host)
 		}
 	}
 
 	if len(hosts) == 0 {
-		NacosClientLogger.Warn("no hosts for " + domainName)
+		NacosClientLogger.Warn("no healthy instances for " + domainName)
 		return nil
 	}
 

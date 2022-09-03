@@ -17,6 +17,7 @@ type NacosGrpcClient struct {
 	serverConfigs []constant.ServerConfig     //nacos服务器集群配置
 	grpcClient    naming_client.INamingClient //nacos-coredns与nacos服务器的grpc连接
 	nacosClient   *NacosClient
+	SubscribeMap  map[string]bool
 }
 
 func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClient) (*NacosGrpcClient, error) {
@@ -27,19 +28,20 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 	}
 	nacosGrpcClient.namespaceId = namespaceId //When namespace is public, fill in the blank string here.
 
-	var serverConfigs []constant.ServerConfig
-	for _, serverHost := range serverHosts {
+	serverConfigs := make([]constant.ServerConfig, len(serverHosts))
+	for i, serverHost := range serverHosts {
 		serverIp := strings.Split(serverHost, ":")[0]
 		serverPort, err := strconv.Atoi(strings.Split(serverHost, ":")[1])
 		if err != nil {
 			NacosClientLogger.Error("nacos server host config error!", err)
 		}
-		serverConfigs = append(serverConfigs, *constant.NewServerConfig(
+		serverConfigs[i] = *constant.NewServerConfig(
 			serverIp,
 			uint64(serverPort),
 			constant.WithScheme("http"),
 			constant.WithContextPath("/nacos"),
-		))
+		)
+
 	}
 	nacosGrpcClient.serverConfigs = serverConfigs
 
@@ -48,7 +50,7 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 		constant.WithTimeoutMs(5000),
 		constant.WithNotLoadCacheAtStart(true),
 		constant.WithUpdateCacheWhenEmpty(true),
-		constant.WithLogDir("/tmp/nacos/log"),
+		constant.WithLogDir(LogPath),
 		constant.WithCacheDir(CachePath),
 		constant.WithLogLevel("info"),
 	)
@@ -63,6 +65,8 @@ func NewNacosGrpcClient(namespaceId string, serverHosts []string, vc *NacosClien
 	if err != nil {
 		fmt.Println("init nacos-client error")
 	}
+
+	nacosGrpcClient.SubscribeMap = make(map[string]bool)
 
 	return &nacosGrpcClient, err
 }
@@ -89,7 +93,7 @@ func (ngc *NacosGrpcClient) GetAllServicesInfo() []string {
 			PageNo:    pageNo,
 			PageSize:  pageSize,
 		})
-		if serviceList.Count != 0 {
+		if serviceList.Count > 0 {
 			doms = append(doms, serviceList.Doms...)
 		}
 	}
@@ -109,7 +113,7 @@ func (ngc *NacosGrpcClient) GetService(serviceName string) model.Service {
 }
 
 func (ngc *NacosGrpcClient) Subscribe(serviceName string) error {
-	if AllDoms.Data[serviceName] {
+	if ngc.SubscribeMap[serviceName] {
 		NacosClientLogger.Info("service " + serviceName + " already subsrcibed.")
 		return nil
 	}
@@ -122,17 +126,28 @@ func (ngc *NacosGrpcClient) Subscribe(serviceName string) error {
 		NacosClientLogger.Error("service subscribe error " + serviceName)
 		return err
 	}
-	AllDoms.Data[serviceName] = true
+	ngc.SubscribeMap[serviceName] = true
+
 	return nil
 }
 
+func (ngc *NacosGrpcClient) Unsubsrcibe(serviceName string) {
+	param := &vo.SubscribeParam{
+		ServiceName:       serviceName,
+		GroupName:         "",
+		SubscribeCallback: ngc.Callback,
+	}
+	ngc.grpcClient.Unsubscribe(param)
+	ngc.SubscribeMap[serviceName] = false
+}
+
 func (ngc *NacosGrpcClient) Callback(instances []model.Instance, err error) {
-	//更新实例数量为0
+	//服务下线,更新实例数量为0
 	if len(instances) == 0 {
 		for dom, _ := range AllDoms.Data {
 			if service := ngc.GetService(dom); len(service.Hosts) == 0 {
 				ngc.nacosClient.GetDomainCache().Set(dom, service)
-				AllDoms.Data[dom] = false
+				ngc.Unsubsrcibe(dom)
 			}
 		}
 		return

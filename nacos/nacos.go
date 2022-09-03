@@ -52,10 +52,14 @@ func (vs *Nacos) managed(dom, clientIP string) bool {
 
 	_, inCache := vs.NacosClientImpl.GetDomainCache().Get(dom)
 
-	// service had already subscribed but not in cache
-	if ok1 && !inCache {
-		AllDoms.Data[dom] = false
-		GrpcClient.Subscribe(dom)
+	/*
+		ok1 means service is alive in server
+		根据dns请求订阅服务：
+		1.服务首次请求, 缓存中没有数据
+		2.插件初始化时在缓存文件中缓存了该服务数据, 但未订阅
+	*/
+	if ok1 && (!inCache || !GrpcClient.SubscribeMap[dom]) {
+		vs.NacosClientImpl.getDomNow(dom, &vs.NacosClientImpl.domainMap, clientIP)
 	}
 
 	return ok1 || inCache
